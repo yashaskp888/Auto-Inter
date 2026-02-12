@@ -4,11 +4,26 @@ import dayjs from 'dayjs'
 import { cn, getRandomInterviewCover, getTechLogos } from '@/lib/utils'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
-import Link from 'next/link'              
+import Link from 'next/link'
+import { db } from '@/firebase/admin'     
 
 
 const InterviewCard = async({interviewId,userId,role,type,techstack,createdAt}:InterviewCardProps) => {
-    const feedBack=null as Feedback||null
+    let feedBack: Feedback | null = null
+
+if (interviewId && userId) {
+  const feedbackSnap = await db
+    .collection('feedback')
+    .where('interviewId', '==', interviewId)
+    .where('userId', '==', userId)
+    .limit(1)
+    .get()
+
+  feedBack = feedbackSnap.empty
+    ? null
+    : (feedbackSnap.docs[0].data() as Feedback)
+}
+
     const techIcons= await getTechLogos(techstack)
     const normalisedType= /mix/i.test(type)?"Mixed":type
     const formattedDate=dayjs(feedBack?.createdAt||createdAt||Date.now()).format("MMM D, YYYY")
