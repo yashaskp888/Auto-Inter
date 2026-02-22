@@ -1,32 +1,54 @@
-
 import React from 'react'
 import dayjs from 'dayjs'
 import { cn, getRandomInterviewCover, getTechLogos } from '@/lib/utils'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { db } from '@/firebase/admin'     
+import { db } from '@/firebase/admin'
+import RetakeInterviewButton from './RetakeInterviewButton'
 
+const InterviewCard = async({
+  interviewId,
+  userId,
+  role,
+  type,
+  techstack,
+  createdAt,
+  feedbackId,
+  hasFeedback,
+  notTakenByMe,
+  sampleScore,
+}: InterviewCardProps) => {
+  let feedBack: (Feedback & { id?: string }) | null = null
+  let resolvedFeedbackId: string | null = feedbackId || null
 
-const InterviewCard = async({interviewId,userId,role,type,techstack,createdAt}:InterviewCardProps) => {
-    let feedBack: Feedback | null = null
+  if (!notTakenByMe && feedbackId && hasFeedback) {
+    const fbDoc = await db.collection('feedback').doc(feedbackId).get()
+    feedBack = fbDoc.exists ? (fbDoc.data() as Feedback & { id: string }) : null
+    resolvedFeedbackId = feedBack ? feedbackId : null
+  }
+  if (!notTakenByMe && interviewId && userId && !feedbackId) {
+    const feedbackSnap = await db
+      .collection('feedback')
+      .where('generatedInterviewId', '==', interviewId)
+      .where('userId', '==', userId)
+      .limit(1)
+      .get()
+    if (!feedbackSnap.empty) {
+      const doc = feedbackSnap.docs[0]
+      feedBack = { ...(doc.data() as Feedback), id: doc.id }
+      resolvedFeedbackId = doc.id
+    }
+  }
 
-if (interviewId && userId) {
-  const feedbackSnap = await db
-    .collection('feedback')
-    .where('interviewId', '==', interviewId)
-    .where('userId', '==', userId)
-    .limit(1)
-    .get()
-
-  feedBack = feedbackSnap.empty
-    ? null
-    : (feedbackSnap.docs[0].data() as Feedback)
-}
-
-    const techIcons= await getTechLogos(techstack)
-    const normalisedType= /mix/i.test(type)?"Mixed":type
-    const formattedDate=dayjs(feedBack?.createdAt||createdAt||Date.now()).format("MMM D, YYYY")
+  const techIcons = await getTechLogos(techstack)
+  const normalisedType = /mix/i.test(type) ? 'Mixed' : type
+  const formattedDate = dayjs(feedBack?.createdAt || createdAt || Date.now()).format('MMM D, YYYY')
+  const showFeedbackForCard = !notTakenByMe && !!feedBack
+  const displayScore = notTakenByMe ? (sampleScore ?? undefined) : feedBack?.totalScore
+  const statusMessage = notTakenByMe
+    ? "You haven't taken this interview yet. Take it now to improve your skills!"
+    : (feedBack?.finalAssessment || "You haven't taken this interview yet. Take it now to improve your skills!")
     return (
     <div className="card-border w-87.5 max-sm:w-full min-h-96">
         <div className="card-interview">
@@ -43,11 +65,11 @@ if (interviewId && userId) {
                     </div>
                     <div className="flex flex-row gap-2">
                         <Image src="/star.svg" alt="Star Icon" width={22} height={22} />
-                        <p>{feedBack?.totalScore||'---'}/100</p>
+                        <p>{displayScore != null ? displayScore : '---'}/100</p>
                 </div>
             </div>
             <p className="line-clamp-2 mt-5">
-                {feedBack?.finalAssessment||"You haven't taken this interview yet. Take it now to improve your skills!"}
+                {statusMessage}
             </p>
         </div>
      <div className="flex flex-row items-center justify-between">
@@ -73,18 +95,27 @@ if (interviewId && userId) {
     ))}
   </div>
 
-  {/* Right: Button */}
-  <Button className="btn-primary">
-    <Link
-      href={
-        feedBack
-          ? `/interview/${interviewId}/feedBack`
-          : `/interview/${interviewId}`
-      }
-    >
-      {feedBack ? "Check Feedback" : "Take Interview"}
-    </Link>
-  </Button>
+  {/* Right: Buttons */}
+  <div className="flex flex-row gap-2">
+    {showFeedbackForCard && resolvedFeedbackId && (
+      <Button className="btn-primary" asChild>
+        <Link href={`/feedback/${resolvedFeedbackId}`}>Check Feedback</Link>
+      </Button>
+    )}
+    {(!showFeedbackForCard || notTakenByMe) && interviewId && (
+      <Button className="btn-primary" asChild>
+        <Link href={`/interview/${interviewId}`}>Take Interview</Link>
+      </Button>
+    )}
+    {showFeedbackForCard && !notTakenByMe && interviewId && userId && (
+      <RetakeInterviewButton
+        sourceInterviewId={interviewId}
+        userId={userId}
+      >
+        Retake
+      </RetakeInterviewButton>
+    )}
+  </div>
 </div>
 
         </div>

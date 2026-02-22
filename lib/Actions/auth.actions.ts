@@ -19,8 +19,9 @@ export async function signUP (params:SignUpParams){
                 message:'User already exists with this UID.'
             }
         }
+        const sayableId = String(Math.floor(1000 + Math.random() * 9000))
         await db.collection('users').doc(uid).set({
-            name,email
+            name,email,sayableId
         })
         return{
             success:true,
@@ -95,6 +96,10 @@ export async function logout() {
     cookieStore.delete("session");
 }
 
+function generateSayableId(): string {
+    return String(Math.floor(1000 + Math.random() * 9000))
+}
+
 /* this is to render the signup page as the first page when the user visits the site rather than home page*/
 export async function getCurrentUser():Promise<User | null>{
     const cookieStore= await cookies()
@@ -104,12 +109,19 @@ export async function getCurrentUser():Promise<User | null>{
     }
     try{
         const decodedClaims=await auth.verifySessionCookie(sessionCookie,true)
-        const userRecord=await db.collection('users').doc(decodedClaims.uid).get()
+        const userRef=db.collection('users').doc(decodedClaims.uid)
+        const userRecord=await userRef.get()
         if (!userRecord.exists){
             return null
         }
+        const data = userRecord.data() || {}
+        if (!data.sayableId) {
+            const sayableId = generateSayableId()
+            await userRef.update({ sayableId })
+            data.sayableId = sayableId
+        }
         return {
-            ...userRecord.data(),
+            ...data,
             id: userRecord.id
     } as User
     }catch (e){

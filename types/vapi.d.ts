@@ -1,17 +1,17 @@
-enum MessageTypeEnum {
+declare enum MessageTypeEnum {
   TRANSCRIPT = "transcript",
   FUNCTION_CALL = "function-call",
   FUNCTION_CALL_RESULT = "function-call-result",
   ADD_MESSAGE = "add-message",
 }
 
-enum MessageRoleEnum {
+declare enum MessageRoleEnum {
   USER = "user",
   SYSTEM = "system",
   ASSISTANT = "assistant",
 }
 
-enum TranscriptMessageTypeEnum {
+declare enum TranscriptMessageTypeEnum {
   PARTIAL = "partial",
   FINAL = "final",
 }
@@ -31,20 +31,27 @@ interface FunctionCallMessage extends BaseMessage {
   type: MessageTypeEnum.FUNCTION_CALL;
   functionCall: {
     name: string;
-    parameters: unknown;
+    parameters: Record<string, unknown>;
   };
 }
 
 interface FunctionCallResultMessage extends BaseMessage {
   type: MessageTypeEnum.FUNCTION_CALL_RESULT;
   functionCallResult: {
-    forwardToClientEnabled?: boolean;
     result: unknown;
-    [a: string]: unknown;
+  };
+}
+
+interface AddMessageMessage extends BaseMessage {
+  type: MessageTypeEnum.ADD_MESSAGE;
+  message: {
+    role: MessageRoleEnum;
+    content: string;
   };
 }
 
 type Message =
   | TranscriptMessage
   | FunctionCallMessage
-  | FunctionCallResultMessage;
+  | FunctionCallResultMessage
+  | AddMessageMessage;

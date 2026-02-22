@@ -1,6 +1,7 @@
 interface Feedback {
   id: string;
   interviewId: string;
+  generatedInterviewId?: string | null;
   totalScore: number;
   categoryScores: Array<{
     name: string;
@@ -36,6 +37,7 @@ interface User {
   name: string;
   email: string;
   id: string;
+  sayableId?: string;
 }
 
 interface InterviewCardProps {
@@ -45,6 +47,10 @@ interface InterviewCardProps {
   type: string;
   techstack: string[];
   createdAt?: string;
+  feedbackId?: string | null;
+  hasFeedback?: boolean;
+  notTakenByMe?: boolean;
+  sampleScore?: number | null;
 }
 
 interface AgentProps {

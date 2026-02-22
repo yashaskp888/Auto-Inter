@@ -13,8 +13,31 @@ function extractJsonArray(text: string): string[] {
   return JSON.parse(match[0])
 }
 
+/** Normalize voice userid so "one two three four" or "1 2 3 4" becomes "1234" for reliable lookup */
+function normalizeUserId(userid: string): string {
+  if (!userid || typeof userid !== 'string') return userid || ''
+  const words: Record<string, string> = {
+    zero: '0', one: '1', two: '2', three: '3', four: '4',
+    five: '5', six: '6', seven: '7', eight: '8', nine: '9',
+  }
+  let s = userid.toLowerCase().trim().replace(/\s+/g, ' ')
+  const parts = s.split(/\s+/)
+  const digits: string[] = []
+  for (const p of parts) {
+    const word = p.replace(/[^a-z0-9]/g, '')
+    if (words[word]) digits.push(words[word])
+    else if (/^\d$/.test(p)) digits.push(p)
+    else if (/^\d+$/.test(p)) digits.push(...p.split(''))
+  }
+  if (digits.length >= 4) return digits.slice(0, 4).join('')
+  const noSpaces = userid.replace(/\s/g, '')
+  if (/^\d{4}$/.test(noSpaces)) return noSpaces
+  return userid.trim()
+}
+
 export async function POST(request:Request){
     const {type,role,level,techstack,amount,userid}=await request.json()
+    const normalizedUserId = normalizeUserId(userid || '')
     try{
         console.log(
   'Groq key loaded:',
@@ -41,15 +64,14 @@ export async function POST(request:Request){
         const interview={
             role,type,level,
             techstack:techstack.split(','),
-            questions:extractJsonArray(questions)
-,
-            userId:userid,
+            questions:extractJsonArray(questions),
+            userId: normalizedUserId || userid || '',
             finalized:true,
             coverImage:getRandomInterviewCover(),
             createdAt:new Date().toISOString()
         }
-        await db.collection('interviews').add(interview)
-        return Response.json({success:true},{status:200})
+        const ref = await db.collection('interviews').add(interview)
+        return Response.json({success:true, interviewId: ref.id},{status:200})
 
     } catch(e){
         console.log(e)
